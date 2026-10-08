@@ -1,0 +1,93 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  FARMER
+  OFFICER
+  ADMIN
+}
+
+enum AppStatus {
+  SUBMITTED
+  VERIFICATION
+  DOCUMENTS_PENDING
+  APPROVED
+  REJECTED
+}
+
+enum DocStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+model User {
+  id           String        @id @default(uuid())
+  phone        String        @unique
+  otpCode      String?       // Cache current OTP code
+  otpExpiry    DateTime?
+  role         Role          @default(FARMER)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  profile      FarmerProfile?
+  applications LoanApplication[]
+}
+
+model FarmerProfile {
+  id            String   @id @default(uuid())
+  name          String
+  age           Int
+  state         String
+  district      String
+  landSize      Float    // In acres
+  cropType      String
+  annualIncome  Float
+  bankName      String
+  accountNumber String
+  ifscCode      String
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model LoanApplication {
+  id        String       @id @default(uuid())
+  schemeId  String       // Code for the scheme (e.g. kcc, aif)
+  status    AppStatus    @default(SUBMITTED)
+  date      DateTime     @default(now())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documents Document[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
+model Document {
+  id            String          @id @default(uuid())
+  name          String          // e.g. "Aadhaar Card"
+  docType       String          // "aadhaar" | "passbook" | "landRecord"
+  url           String          // Cloudinary URL
+  publicId      String          // Cloudinary resource ID for deletions
+  status        DocStatus       @default(PENDING)
+  applicationId String
+  application   LoanApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  title     String
+  message   String
+  userId    String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
